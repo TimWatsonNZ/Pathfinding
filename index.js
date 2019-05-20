@@ -72,7 +72,7 @@ function draw(tiles) {
 }
 
 let currentPath = [];
-function pathFind(start, end) {
+function simplePathFind(start, end) {
   const path = [];
   path.push(start);
 
@@ -147,7 +147,7 @@ canvas.addEventListener('contextmenu', event => {
   }
 
   if (entityTile && goalTile) {
-    currentPath = pathFind(entityTile, goalTile);
+    currentPath = simplePathFind(entityTile, goalTile);
   }
 
   draw(tiles);
