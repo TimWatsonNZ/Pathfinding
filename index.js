@@ -46,6 +46,8 @@ for(let x = 0;x < gridSize;x++) {
   tiles.push(column);
 }
 const selectedColor = '#0000FF';
+let goalTile = null;
+let entityTile = null;
 
 function draw(tiles) {
   context.fillStyle = '#FFFFFF';
@@ -66,17 +68,48 @@ function draw(tiles) {
       context.popFillStyle();
     }
   }
+  drawPath(currentPath);
 }
 
 let currentPath = [];
 function pathFind(start, end) {
   const path = [];
   path.push(start);
-  let node = start;
 
-  while (node.x !== end.x && node.y !== end.y) {
-    
+  let point = { x: start.x, y: start.y };
+  while (point.x !== end.x || point.y !== end.y) {
+    if (point.x > end.x) {
+      point.x--
+    }
+    if (point.x < end.x) {
+      point.x++;
+    }
+
+    if (point.y > end.y) {
+      point.y--;
+    }
+    if (point.y < end.y) {
+      point.y++;
+    }
+    path.push(tiles[point.x][point.y]);
   }
+
+  return path.map(p => {
+    return { x: p.x * tileSize + tileSize / 2, y: p.y * tileSize + tileSize / 2 };
+  });
+}
+
+const drawPath = (path) => {
+  context.strokeStyle = '#000000';
+  context.beginPath();
+  path.forEach((p, i) => {
+    if (i === 0) {
+      context.moveTo(p.x, p.y);
+    } else {
+      context.lineTo(p.x, p.y);
+    }
+  });
+  context.stroke();
 }
 
 //  create grid
@@ -104,6 +137,19 @@ canvas.addEventListener('contextmenu', event => {
   if (!tile) return;
 
   tile.type = selectedTileType;
+  if (selectedTileType === tileTypes.Goal) {
+    if (goalTile) goalTile.type = tileTypes.Open;
+    goalTile = tile;
+  }
+  if (selectedTileType === tileTypes.Entity) {
+    if (entityTile) entityTile.type = tileTypes.Open;
+    entityTile = tile;
+  }
+
+  if (entityTile && goalTile) {
+    currentPath = pathFind(entityTile, goalTile);
+  }
+
   draw(tiles);
   return false;
 }, false);
