@@ -99,6 +99,72 @@ function simplePathFind(start, end) {
   });
 }
 
+function getNeighbours(tile) {
+  const directions = [
+    { x: -1, y: -1}, { x: 0, y: -1},{ x: 1, y: -1},
+    { x: -1, y: 0},                 { x: 1, y: 0},
+    { x: -1, y: 1},  { x: 0, y: 1}, { x: 1, y: 1},
+  ];
+  return directions.map(d => ({ x: d.x + tile.x, y: d.y + tile.y }))
+    .filter(n => n.x >= 0 && n.y >= 0 && n.x < gridSize && n.y < gridSize);
+}
+
+function aStar(start, goal) {
+  let open = [...getNeighbours(start).map(node => ({ node, parent: start}))];
+  const closed = [{ node: { x: start.x, y: start. y}}];
+
+  const f = (node, goal) => {
+    return Math.abs(node.x - goal.x) + Math.abs(node.y - goal.y); 
+  }
+
+  const nodeWithMinimalF = (list, goal) => {
+    const min = list.reduce((min, curr) => {
+      const distance = f(curr.node, goal);
+      if (distance < min.distance) {
+        min = { distance, node: curr };
+      }
+      return min;
+    }, { node: list[0], distance: f(list[0].node, goal)});
+    return min;
+  }
+
+  while (open.length > 0) {
+    const minF = nodeWithMinimalF(open, goal);
+    open = open.filter(n => !(n.x === minF.node.x && n.y === minF.node.y));
+    const successors = getNeighbours(minF.node.node).map(node => ({ node, parent: minF.node }));
+    
+    for(let i=0;i < successors.length; i++) {
+      const s = successors[i];
+      if (s.node.x === goal.x && s.node.y == goal.y) {
+        const path = [];
+        tracePath(s, path);
+        return path.map(p => {
+          return { x: p.x * tileSize + tileSize / 2, y: p.y * tileSize + tileSize / 2 };
+        });
+      }
+      const samePositionOpen = open.filter(n => n.node.x === s.node.x && n.node.y === s.node.y);
+      if (samePositionOpen && samePositionOpen.distance < s.distance) continue;
+
+      const samePositionClosed = closed.filter(n => n.node.x === s.node.x && n.node.y === s.node.y);
+      if (samePositionClosed && samePositionClosed.distance < s.distance) continue;
+
+      open.push(s);
+    }
+    closed.push(minF);
+  }
+}
+
+const tracePath = (node, path) => {
+  if (!node.parent) {
+    console.log(`X: ${node.x}, Y: ${node.y}`);
+    path.push({ x: node.x, y: node.y });
+    return;
+  }
+  path.push({ x: node.node.x, y: node.node.y });
+  console.log(`X: ${node.node.x}, Y: ${node.node.y}`);
+  tracePath(node.parent, path);
+}
+
 const drawPath = (path) => {
   context.strokeStyle = '#000000';
   context.beginPath();
@@ -147,7 +213,8 @@ canvas.addEventListener('contextmenu', event => {
   }
 
   if (entityTile && goalTile) {
-    currentPath = simplePathFind(entityTile, goalTile);
+    // currentPath = simplePathFind(entityTile, goalTile);
+    currentPath = aStar(entityTile, goalTile);
   }
 
   draw(tiles);
