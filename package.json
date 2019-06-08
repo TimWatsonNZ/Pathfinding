@@ -1,0 +1,28 @@
+{
+  "name": "Pathfinding",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "cpx \"./index.html\" \"./dist\" | webpack",
+    "start": "webpack --watch",
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TimWatsonNZ/Pathfinding.git"
+  },
+  "keywords": [],
+  "author": "Tim Watson",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TimWatsonNZ/Pathfinding/issues"
+  },
+  "homepage": "https://github.com/TimWatsonNZ/Pathfinding#readme",
+  "dependencies": {
+    "nodemon-webpack-plugin": "^4.0.8",
+    "ts-loader": "^6.0.1",
+    "typescript": "^3.4.5",
+    "webpack": "^4.32.2",
+    "webpack-cli": "^3.3.2"
+  }
+}
