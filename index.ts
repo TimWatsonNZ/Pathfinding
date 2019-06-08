@@ -117,7 +117,7 @@ function getNeighbours(tile: Tile) {
     .map(x => tiles[x.x][x.y]);
 }
 
-function aStar(start: Tile, goal: Tile) {
+function aStar(start: Tile, goal: Tile): Array<Tile> {
   const startPathNode = { tile: start, parent: null, fValue: 0 } as PathNode;
   let open = [...getNeighbours(start).map(tile => ({ tile, parent: startPathNode, fValue: 0}))];
   const closed = [startPathNode];
@@ -160,9 +160,7 @@ function aStar(start: Tile, goal: Tile) {
         const path = Array<Tile>();
         tracePath(successor, path);
 
-        return path.map(tile => {
-          return { x: tile.x * tileSize + tileSize / 2, y: tile.y * tileSize + tileSize / 2 };
-        });
+        return path;
       }
 
       const samePositionOpen = open.find(n => n.tile.x === successor.tile.x && n.tile.y === successor.tile.y);
@@ -178,12 +176,12 @@ function aStar(start: Tile, goal: Tile) {
 }
 
 const tracePath = (node: PathNode, path: Array<Tile>) => {
+  path.push(node.tile);
   if (!node.parent) {
     console.log(`X: ${node.tile.x}, Y: ${node.tile.y}`);
-    path.push(node.tile);
     return;
   }
-  path.push();
+  
   console.log(`X: ${node.tile.x}, Y: ${node.tile.y}`);
   tracePath(node.parent, path);
 }
@@ -192,10 +190,12 @@ const drawPath = (path: Array<Tile>) => {
   context.strokeStyle = '#000000';
   context.beginPath();
   path.forEach((p, i) => {
+    const point = { x: p.x * tileSize + tileSize / 2, y: p.y * tileSize + tileSize / 2 };
+
     if (i === 0) {
-      context.moveTo(p.x, p.y);
+      context.moveTo(point.x, point.y);
     } else {
-      context.lineTo(p.x, p.y);
+      context.lineTo(point.x, point.y);
     }
   });
   context.stroke();
@@ -238,7 +238,7 @@ canvas.addEventListener('contextmenu', event => {
 
   if (entityTile && goalTile) {
     // currentPath = simplePathFind(entityTile, goalTile);
-    aStar(entityTile, goalTile);
+    currentPath = aStar(entityTile, goalTile);
   }
 
   draw(tiles);
