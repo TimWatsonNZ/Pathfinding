@@ -56,6 +56,45 @@ const selectedColor = '#0000FF';
 let goalTile: Tile | null = null;
 let entityTile: Tile | null = null;
 
+interface ScenarioTile { x: number, y: number, tileType: TileType };
+function loadScenario(scenario: Array<ScenarioTile>) {
+  scenario.forEach(tile => {
+    tiles[tile.x][tile.y].type = tile.tileType;
+  });
+}
+let currentPath = Array<Tile>();
+
+function loadScenario1() {
+  const scenario = [
+    { x: 0, y: 0, tileType: TileType.Open },{ x: 1, y: 0, tileType: TileType.Open },{ x: 2, y: 0, tileType: TileType.Open },{ x: 3, y: 0, tileType: TileType.Open },  
+    { x: 0, y: 1, tileType: TileType.Block },{ x: 1, y: 1, tileType: TileType.Entity },{ x: 2, y: 1, tileType: TileType.Open },{ x: 3, y: 1, tileType: TileType.Open },  
+    { x: 0, y: 2, tileType: TileType.Open },{ x: 1, y: 2, tileType: TileType.Block },{ x: 2, y: 2, tileType: TileType.Block },{ x: 3, y: 2, tileType: TileType.Open },  
+    { x: 0, y: 3, tileType: TileType.Goal },{ x: 1, y: 3, tileType: TileType.Open },{ x: 2, y: 3, tileType: TileType.Open },{ x: 3, y: 3, tileType: TileType.Open },  
+  ];
+  loadScenario(scenario);
+}
+loadScenario1();
+
+
+//  create grid
+draw(tiles);
+
+function drawPath (path: Array<Tile>) {
+  if (!path) return;
+  context.strokeStyle = '#000000';
+  context.beginPath();
+  path.forEach((p, i) => {
+    const point = { x: p.x * tileSize + tileSize / 2, y: p.y * tileSize + tileSize / 2 };
+
+    if (i === 0) {
+      context.moveTo(point.x, point.y);
+    } else {
+      context.lineTo(point.x, point.y);
+    }
+  });
+  context.stroke();
+}
+
 function draw(tiles: Tile[][]) {
   context.fillStyle = '#FFFFFF';
   context.fillRect(0,0,canvas.width, canvas.height);
@@ -78,7 +117,6 @@ function draw(tiles: Tile[][]) {
   drawPath(currentPath);
 }
 
-let currentPath = Array<Tile>();
 function simplePathFind(start: Tile, end: Tile) {
   const path = [];
   path.push(start);
@@ -117,39 +155,47 @@ function getNeighbours(tile: Tile) {
     .map(x => tiles[x.x][x.y]);
 }
 
+const f = (tile: Tile, goal: Tile) => {
+  return Math.abs(tile.x - goal.x) + Math.abs(tile.y - goal.y); 
+}
+
+const nodeWithMinimalF = (list: PathNode[], goal: Tile): PathNode => {
+  const min = list.reduce((min: PathNode, curr: PathNode) => {
+    const distance = f(curr.tile, goal);
+    if (distance < min.fValue) {
+      min = { fValue: distance, tile: curr.tile, parent: curr.parent };
+    }
+    return min;
+  }, { ...list[0], fValue: f(list[0].tile, goal) });
+  return min;
+}
+
+const tileToPathNode = (tile: Tile, parent: PathNode, fValue: number): PathNode => ({ tile, parent, fValue }); 
+
+const getSuccessors = (pathNode: PathNode): Array<PathNode> => {
+  const neighbours = getNeighbours(pathNode.tile)
+    .filter(node => node.type !== TileType.Block);
+
+  return neighbours.map(tile => tileToPathNode(tile, pathNode, pathNode.fValue));
+}
+
 function aStar(start: Tile, goal: Tile): Array<Tile> {
   const startPathNode = { tile: start, parent: null, fValue: 0 } as PathNode;
-  let open = [...getNeighbours(start).map(tile => ({ tile, parent: startPathNode, fValue: 0}))];
+  let open = [...getSuccessors(startPathNode)];
   const closed = [startPathNode];
 
-  const f = (tile: Tile, goal: Tile) => {
-    return Math.abs(tile.x - goal.x) + Math.abs(tile.y - goal.y); 
-  }
+  
 
-  const nodeWithMinimalF = (list: PathNode[], goal: Tile): PathNode => {
-    const min = list.reduce((min: PathNode, curr: PathNode) => {
-      const distance = f(curr.tile, goal);
-      if (distance < min.fValue) {
-        min = { fValue: distance, tile: curr.tile, parent: curr.parent };
-      }
-      return min;
-    }, { ...list[0], fValue: f(list[0].tile, goal) });
-    return min;
-  }
-
-  const tileToPathNode = (tile: Tile, parent: PathNode, fValue: number): PathNode => ({ tile, parent, fValue }); 
-
-  const getSuccessors = (pathNode: PathNode): Array<PathNode> => {
-    const neighbours = getNeighbours(pathNode.tile)
-      .filter(node => node.type !== TileType.Block);
-
-    return neighbours.map(tile => tileToPathNode(tile, pathNode, pathNode.fValue));
-  }
-
-
-  while (open.length > 0) {
+  const max = 100;
+  let count = 0;
+  while (open.length > 0 && count < max) {
+    count++;
     const minF = nodeWithMinimalF(open, goal);
+
+    //  Pops the minF node from the open list...
+    console.log(`Before filter dupes: ${open.length}`);
     open = open.filter(pathNode => !(pathNode.tile.x === minF.tile.x && pathNode.tile.y === minF.tile.y));
+    console.log(`After filter dupes: ${open.length}`);
     
     const successors = getSuccessors(minF);
     
@@ -164,10 +210,16 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
       }
 
       const samePositionOpen = open.find(n => n.tile.x === successor.tile.x && n.tile.y === successor.tile.y);
-      if (samePositionOpen && samePositionOpen.fValue < successor.fValue) continue;
+      if (samePositionOpen && samePositionOpen.fValue <= successor.fValue) {
+        
+        continue;
+      }
 
       const samePositionClosed = closed.find(n => n.tile.x === successor.tile.x && n.tile.y === successor.tile.y);
-      if (samePositionClosed && samePositionClosed.fValue < successor.fValue) continue;
+      if (samePositionClosed && samePositionClosed.fValue <= successor.fValue) {
+        
+        continue;
+      }
 
       open.push(successor);
     }
@@ -181,28 +233,11 @@ const tracePath = (node: PathNode, path: Array<Tile>) => {
     console.log(`X: ${node.tile.x}, Y: ${node.tile.y}`);
     return;
   }
-  
+
   console.log(`X: ${node.tile.x}, Y: ${node.tile.y}`);
   tracePath(node.parent, path);
 }
 
-const drawPath = (path: Array<Tile>) => {
-  context.strokeStyle = '#000000';
-  context.beginPath();
-  path.forEach((p, i) => {
-    const point = { x: p.x * tileSize + tileSize / 2, y: p.y * tileSize + tileSize / 2 };
-
-    if (i === 0) {
-      context.moveTo(point.x, point.y);
-    } else {
-      context.lineTo(point.x, point.y);
-    }
-  });
-  context.stroke();
-}
-
-//  create grid
-draw(tiles);
 
 canvas.addEventListener('click', (event) => {
   const { layerX, layerY } = event;
