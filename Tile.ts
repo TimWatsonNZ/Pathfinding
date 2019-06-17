@@ -4,6 +4,8 @@ class Tile {
   x: number;
   y: number;
   selected: boolean;
+  inClosed?: boolean;
+  inOpen?: boolean;
   type: string;
   [key: number]: Tile;
   constructor(x: number, y: number) {

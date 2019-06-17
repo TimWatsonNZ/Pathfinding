@@ -1,6 +1,21 @@
 <html>
   <head></head>
   <body>
+    <div style='display: flex'>
+      <canvas id='canvas' width="600px" height="600px" ></canvas>
+      <div>
+        <fieldset id='tileType' >
+          <input type='radio' value='entity' name='tileType' id='radioEntity' />
+          <label for='radioEntity'>Entity</label>
+          <input type='radio' value='block' name='tileType' id='radioBlock' />
+          <label for='radioBlock'>Block</label>
+          <input type='radio' value='goal' name='tileType' id='radioGoal' />
+          <label for='radioGoal'>Goal</label>
+          <input type='radio' checked="checked" value='open' name='tileType' id='radioOpen' />
+          <label for='radioOpen'>Open</label>
+        </fieldset>
+      </div>
+    </div>
     <script src='./main.js'></script>
   </body>
 </html>

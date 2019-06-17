@@ -1,7 +1,7 @@
 import { TileType } from "./TileType";
 import Tile from "./Tile";
 
-const canvas = document.createElement('canvas');
+const canvas = document.querySelector('#canvas') as any;
 const context = canvas.getContext('2d');
 
 canvas.width = 600;
@@ -11,9 +11,9 @@ interface PathNode {
   tile: Tile;
   parent: PathNode | null;
   fValue: number;
+  // hValue: number;
 }
 
-document.body.appendChild(canvas);
 const fillStyleStack = Array<string>();
 const strokeStyleStack = Array<string>();
 
@@ -42,6 +42,8 @@ enum TypeColors {
 }
 let selectedTileType = TileType.Block;
 
+let debug = true;
+
 const gridSize = 20;
 const tileSize = 20;
 const tiles = Array<Array<Tile>>();
@@ -59,10 +61,18 @@ let entityTile: Tile | null = null;
 interface ScenarioTile { x: number, y: number, tileType: TileType };
 function loadScenario(scenario: Array<ScenarioTile>) {
   scenario.forEach(tile => {
+    if (tile.tileType === TileType.Entity) {
+      entityTile = tiles[tile.x][tile.y];
+    }
+    if (tile.tileType === TileType.Goal) {
+      goalTile = tiles[tile.x][tile.y];
+    }
     tiles[tile.x][tile.y].type = tile.tileType;
   });
 }
 let currentPath = Array<Tile>();
+let visitedTiles = Array<Tile>();
+let fringeTiles = Array<Tile>();
 
 function loadScenario1() {
   const scenario = [
@@ -74,7 +84,6 @@ function loadScenario1() {
   loadScenario(scenario);
 }
 loadScenario1();
-
 
 //  create grid
 draw(tiles);
@@ -101,7 +110,8 @@ function draw(tiles: Tile[][]) {
   context.fillStyle = '#000000';
   for (let x = 0; x < tiles.length; x++) {
     for (let y = 0; y < tiles[x].length;y++) {
-      if (tiles[x][y].selected) {
+      const tile = tiles[x][y];
+      if (tile.selected) {
         pushStrokeStyle(selectedColor);
         context.strokeRect(x*tileSize, y*tileSize, tileSize, tileSize);
         popStrokeStyle();
@@ -109,9 +119,20 @@ function draw(tiles: Tile[][]) {
         context.strokeRect(x*tileSize, y*tileSize, tileSize, tileSize);
       }
 
-      pushFillStyle(TypeColors[tiles[x][y].type]);
-      context.fillRect(x*tileSize + 1, y*tileSize + 1, tileSize-2, tileSize-2);
-      popFillStyle();
+      if (tile.inClosed) {
+        pushFillStyle('mediumblue');
+        context.fillRect(x*tileSize + 1, y*tileSize + 1, tileSize-2, tileSize-2);
+        popFillStyle();
+      } else
+      if (tile.inOpen) {
+        pushFillStyle('cornflowerblue');
+        context.fillRect(x*tileSize + 1, y*tileSize + 1, tileSize-2, tileSize-2);
+        popFillStyle();
+      } else {
+        pushFillStyle(TypeColors[tile.type]);
+        context.fillRect(x*tileSize + 1, y*tileSize + 1, tileSize-2, tileSize-2);
+        popFillStyle();
+      }
     }
   }
   drawPath(currentPath);
@@ -155,18 +176,22 @@ function getNeighbours(tile: Tile) {
     .map(x => tiles[x.x][x.y]);
 }
 
-const f = (tile: Tile, goal: Tile) => {
+const costToGoal = (tile: Tile, goal: Tile) => {
   return Math.abs(tile.x - goal.x) + Math.abs(tile.y - goal.y); 
+}
+
+const costFromStart = (tile: Tile, start: Tile) => {
+  return Math.abs(tile.x - start.x) + Math.abs(tile.y - start.y); 
 }
 
 const nodeWithMinimalF = (list: PathNode[], goal: Tile): PathNode => {
   const min = list.reduce((min: PathNode, curr: PathNode) => {
-    const distance = f(curr.tile, goal);
+    const distance = costToGoal(curr.tile, goal);
     if (distance < min.fValue) {
       min = { fValue: distance, tile: curr.tile, parent: curr.parent };
     }
     return min;
-  }, { ...list[0], fValue: f(list[0].tile, goal) });
+  }, { ...list[0], fValue: costToGoal(list[0].tile, goal) });
   return min;
 }
 
@@ -183,19 +208,22 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
   const startPathNode = { tile: start, parent: null, fValue: 0 } as PathNode;
   let open = [...getSuccessors(startPathNode)];
   const closed = [startPathNode];
-
   
-
-  const max = 100;
-  let count = 0;
-  while (open.length > 0 && count < max) {
-    count++;
+  tiles.forEach(column => {
+    column.forEach(tile => {
+      if (tile.inOpen) {
+        tile.inOpen = false;
+      }
+      if (tile.inClosed) {
+        tile.inClosed = false;
+      }
+    })
+  })
+  
+  while (open.length > 0) {
     const minF = nodeWithMinimalF(open, goal);
 
-    //  Pops the minF node from the open list...
-    console.log(`Before filter dupes: ${open.length}`);
     open = open.filter(pathNode => !(pathNode.tile.x === minF.tile.x && pathNode.tile.y === minF.tile.y));
-    console.log(`After filter dupes: ${open.length}`);
     
     const successors = getSuccessors(minF);
     
@@ -204,6 +232,11 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
       const successor = successors[i];
       if (successor.tile.x === goal.x && successor.tile.y == goal.y) {
         const path = Array<Tile>();
+        
+        if (debug) {
+          open.forEach(pathNode => pathNode.tile.inOpen = true);
+          closed.forEach(pathNode => pathNode.tile.inClosed = true);
+        }
         tracePath(successor, path);
 
         return path;
@@ -211,13 +244,11 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
 
       const samePositionOpen = open.find(n => n.tile.x === successor.tile.x && n.tile.y === successor.tile.y);
       if (samePositionOpen && samePositionOpen.fValue <= successor.fValue) {
-        
         continue;
       }
 
       const samePositionClosed = closed.find(n => n.tile.x === successor.tile.x && n.tile.y === successor.tile.y);
       if (samePositionClosed && samePositionClosed.fValue <= successor.fValue) {
-        
         continue;
       }
 
@@ -230,16 +261,14 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
 const tracePath = (node: PathNode, path: Array<Tile>) => {
   path.push(node.tile);
   if (!node.parent) {
-    console.log(`X: ${node.tile.x}, Y: ${node.tile.y}`);
     return;
   }
 
-  console.log(`X: ${node.tile.x}, Y: ${node.tile.y}`);
   tracePath(node.parent, path);
 }
 
 
-canvas.addEventListener('click', (event) => {
+canvas.addEventListener('click', (event: MouseEvent) => {
   const { layerX, layerY } = event;
   const column = tiles[Math.floor(layerX/tileSize)];
   if (!column) return;
@@ -248,11 +277,10 @@ canvas.addEventListener('click', (event) => {
   if (!tile) return;
 
   tile.selected = !tile.selected;
-  console.log(JSON.stringify(tile));
   draw(tiles);
 });
 
-canvas.addEventListener('contextmenu', event => {
+canvas.addEventListener('contextmenu', (event: MouseEvent) => {
   event.preventDefault();
   const { layerX, layerY } = event;
   const column = tiles[Math.floor(layerX/tileSize)];
@@ -283,14 +311,43 @@ canvas.addEventListener('contextmenu', event => {
 window.addEventListener('keydown', (event) => {
   if (event.key === 'b') {
     selectedTileType = TileType.Block;
+    (document.querySelector("#radioBlock") as any).checked = true;
   }
   if (event.key === 'e') {
     selectedTileType = TileType.Entity;
+    (document.querySelector("#radioEntity") as any).checked = true;
   }
   if (event.key === 'g') {
     selectedTileType = TileType.Goal;
+    (document.querySelector("#radioGoal") as any).checked = true;
   }
   if (event.key === 'o') {
     selectedTileType = TileType.Open;
+    (document.querySelector("#radioOpen") as any).checked = true;
   }
 });
+
+document.querySelectorAll("input[name='tileType']").forEach(element => element.addEventListener('click', (event) => {
+  const selected = document.querySelector("input[name='tileType']:checked");
+  
+  switch (selected.getAttribute('value')) {
+    case 'block': {
+      selectedTileType = TileType.Block;
+      return;
+    }
+    case 'entity': {
+      selectedTileType = TileType.Entity;
+      return;
+    }
+    case 'goal': {
+      selectedTileType = TileType.Goal;
+      return;
+    }
+    case 'open': {
+      selectedTileType = TileType.Open;
+      return;
+  }
+    default:
+      return;
+  }
+}));
