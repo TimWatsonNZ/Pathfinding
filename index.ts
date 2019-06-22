@@ -11,7 +11,7 @@ interface PathNode {
   tile: Tile;
   parent: PathNode | null;
   fValue: number;
-  // hValue: number;
+  hValue: number;
 }
 
 const fillStyleStack = Array<string>();
@@ -184,24 +184,25 @@ const costFromStart = (tile: Tile, start: Tile) => {
   return Math.abs(tile.x - start.x) + Math.abs(tile.y - start.y); 
 }
 
-const nodeWithMinimalF = (list: PathNode[], goal: Tile): PathNode => {
+const findCheapestNode = (list: PathNode[], goal: Tile, start: Tile): PathNode => {
   const min = list.reduce((min: PathNode, curr: PathNode) => {
-    const distance = costToGoal(curr.tile, goal);
-    if (distance < min.fValue) {
-      min = { fValue: distance, tile: curr.tile, parent: curr.parent };
+    const distanceToGoal = costToGoal(curr.tile, goal);
+    const distanceToStart = costFromStart(curr.tile, start);
+    if ((distanceToGoal + distanceToStart) < min.fValue) {
+      min = { fValue: distanceToGoal, hValue: distanceToStart, tile: curr.tile, parent: curr.parent };
     }
     return min;
-  }, { ...list[0], fValue: costToGoal(list[0].tile, goal) });
+  }, { ...list[0], fValue: costToGoal(list[0].tile, goal), hValue: costFromStart(list[0].tile, start) });
   return min;
 }
 
-const tileToPathNode = (tile: Tile, parent: PathNode, fValue: number): PathNode => ({ tile, parent, fValue }); 
+const tileToPathNode = (tile: Tile, parent: PathNode, fValue: number, hValue: number): PathNode => ({ tile, parent, fValue, hValue }); 
 
 const getSuccessors = (pathNode: PathNode): Array<PathNode> => {
   const neighbours = getNeighbours(pathNode.tile)
     .filter(node => node.type !== TileType.Block);
 
-  return neighbours.map(tile => tileToPathNode(tile, pathNode, pathNode.fValue));
+  return neighbours.map(tile => tileToPathNode(tile, pathNode, pathNode.fValue, pathNode.hValue));
 }
 
 function aStar(start: Tile, goal: Tile): Array<Tile> {
@@ -221,11 +222,11 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
   })
   
   while (open.length > 0) {
-    const minF = nodeWithMinimalF(open, goal);
+    const cheapestNode = findCheapestNode(open, goal, start);
 
-    open = open.filter(pathNode => !(pathNode.tile.x === minF.tile.x && pathNode.tile.y === minF.tile.y));
+    open = open.filter(pathNode => !(pathNode.tile.x === cheapestNode.tile.x && pathNode.tile.y === cheapestNode.tile.y));
     
-    const successors = getSuccessors(minF);
+    const successors = getSuccessors(cheapestNode);
     
     for(let i=0;i < successors.length; i++) {
       
@@ -254,7 +255,7 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
 
       open.push(successor);
     }
-    closed.push(minF);
+    closed.push(cheapestNode);
   }
 }
 
