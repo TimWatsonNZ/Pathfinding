@@ -218,9 +218,36 @@ const getSuccessors = (pathNode: PathNode): Array<PathNode> => {
   return neighbours.map(tile => tileToPathNode(tile, pathNode, pathNode.fValue, pathNode.hValue));
 }
 
+interface Identifiable<T> {
+  getKey(): string;
+}
+
+class Collection<T extends Identifiable<T>> {
+  hashSet: any; //  will change to prio queue
+  array: Array<T>;
+
+  constructor() {
+    this.hashSet = {};
+    this.array = [];
+  }
+
+  add(value: T) {
+    this.array.push(value);
+    this.hashSet[value.getKey()] = value;
+  }
+
+  test(value: T) {
+    return !!this.hashSet[value.getKey()];
+  }
+
+  remove(value: T) {
+    this.array = this.array.filter(x => x.getKey() !== value.getKey());
+  }
+}
+
 function aStar(start: Tile, goal: Tile): Array<Tile> {
   console.time('aStar');
-  
+
   const startPathNode = { tile: start, parent: null, fValue: 0, hValue: 0 } as PathNode;
   let open = [...getSuccessors(startPathNode)];
   const closed = [startPathNode];
