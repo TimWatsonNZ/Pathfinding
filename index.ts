@@ -58,30 +58,70 @@ const selectedColor = '#0000FF';
 let goalTile: Tile | null = null;
 let entityTile: Tile | null = null;
 
+class Point {
+  public x: number;
+  public y: number;
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
 interface ScenarioTile { x: number, y: number, tileType: TileType };
-function loadScenario(scenario: Array<ScenarioTile>) {
-  scenario.forEach(tile => {
-    if (tile.tileType === TileType.Entity) {
-      entityTile = tiles[tile.x][tile.y];
-    }
-    if (tile.tileType === TileType.Goal) {
-      goalTile = tiles[tile.x][tile.y];
-    }
-    tiles[tile.x][tile.y].type = tile.tileType;
+
+function loadScenario(start: Point, scenarioTiles: Array<Array<string>>) {
+  scenarioTiles.forEach((row, y) => {
+    row.forEach((tile, x) => {
+      switch(tile) {
+        case 'o': {
+          tiles[x + start.x][y + start.y].type = TileType.Open;
+          break;
+        }
+        case 'e': {
+          entityTile = tiles[x + start.x][y + start.y];
+          tiles[x + start.x][y + start.y].type = TileType.Entity;
+          break;
+        }
+        case 'g': {
+          tiles[x + start.x][y + start.y].type = TileType.Goal;
+          goalTile = tiles[x + start.x][y + start.y];
+          break;
+        }
+        case 'b': {
+          tiles[x + start.x][y + start.y].type = TileType.Block;
+          break;
+        }
+      }
+    });
   });
 }
 let currentPath = Array<Tile>();
-let visitedTiles = Array<Tile>();
-let fringeTiles = Array<Tile>();
 
 function loadScenario1() {
-  const scenario = [
-    { x: 0, y: 0, tileType: TileType.Open },{ x: 1, y: 0, tileType: TileType.Open },{ x: 2, y: 0, tileType: TileType.Open },{ x: 3, y: 0, tileType: TileType.Open },  
-    { x: 0, y: 1, tileType: TileType.Block },{ x: 1, y: 1, tileType: TileType.Entity },{ x: 2, y: 1, tileType: TileType.Open },{ x: 3, y: 1, tileType: TileType.Open },  
-    { x: 0, y: 2, tileType: TileType.Open },{ x: 1, y: 2, tileType: TileType.Block },{ x: 2, y: 2, tileType: TileType.Block },{ x: 3, y: 2, tileType: TileType.Open },  
-    { x: 0, y: 3, tileType: TileType.Goal },{ x: 1, y: 3, tileType: TileType.Open },{ x: 2, y: 3, tileType: TileType.Open },{ x: 3, y: 3, tileType: TileType.Open },  
+  const startPoint = new Point(0, 0);
+  const tiles = [
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','g',],
+    ['o','b','b','b','b','b','b','b','b','b','b','b','b','b','b','b','b','b','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','b','o',],
+    ['e','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o',],
   ];
-  loadScenario(scenario);
+  loadScenario(startPoint, tiles);
 }
 loadScenario1();
 
@@ -138,33 +178,6 @@ function draw(tiles: Tile[][]) {
   drawPath(currentPath);
 }
 
-function simplePathFind(start: Tile, end: Tile) {
-  const path = [];
-  path.push(start);
-
-  let point = { x: start.x, y: start.y };
-  while (point.x !== end.x || point.y !== end.y) {
-    if (point.x > end.x) {
-      point.x--
-    }
-    if (point.x < end.x) {
-      point.x++;
-    }
-
-    if (point.y > end.y) {
-      point.y--;
-    }
-    if (point.y < end.y) {
-      point.y++;
-    }
-    path.push(tiles[point.x][point.y]);
-  }
-
-  return path.map(p => {
-    return { x: p.x * tileSize + tileSize / 2, y: p.y * tileSize + tileSize / 2 };
-  });
-}
-
 function getNeighbours(tile: Tile) {
   const directions = [
     { x: -1, y: -1}, { x: 0, y: -1},{ x: 1, y: -1},
@@ -177,11 +190,11 @@ function getNeighbours(tile: Tile) {
 }
 
 const costToGoal = (tile: Tile, goal: Tile) => {
-  return Math.abs(tile.x - goal.x) + Math.abs(tile.y - goal.y); 
+  return Math.sqrt(Math.pow(Math.abs(tile.x - goal.x),2) + Math.pow(Math.abs(tile.y - goal.y), 2)); 
 }
 
 const costFromStart = (tile: Tile, start: Tile) => {
-  return Math.abs(tile.x - start.x) + Math.abs(tile.y - start.y); 
+  return Math.sqrt(Math.pow(Math.abs(tile.x - start.x), 2) + Math.pow(Math.abs(tile.y - start.y),2)); 
 }
 
 const findCheapestNode = (list: PathNode[], goal: Tile, start: Tile): PathNode => {
@@ -206,7 +219,9 @@ const getSuccessors = (pathNode: PathNode): Array<PathNode> => {
 }
 
 function aStar(start: Tile, goal: Tile): Array<Tile> {
-  const startPathNode = { tile: start, parent: null, fValue: 0 } as PathNode;
+  console.time('aStar');
+  
+  const startPathNode = { tile: start, parent: null, fValue: 0, hValue: 0 } as PathNode;
   let open = [...getSuccessors(startPathNode)];
   const closed = [startPathNode];
   
@@ -240,6 +255,7 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
         }
         tracePath(successor, path);
 
+        console.timeEnd('aStar');
         return path;
       }
 
@@ -278,6 +294,7 @@ canvas.addEventListener('click', (event: MouseEvent) => {
   if (!tile) return;
 
   tile.selected = !tile.selected;
+
   draw(tiles);
 });
 
@@ -301,7 +318,6 @@ canvas.addEventListener('contextmenu', (event: MouseEvent) => {
   tile.type = selectedTileType;
 
   if (entityTile && goalTile) {
-    // currentPath = simplePathFind(entityTile, goalTile);
     currentPath = aStar(entityTile, goalTile);
   }
 
