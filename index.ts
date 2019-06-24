@@ -55,8 +55,8 @@ let selectedTileType = TileType.Block;
 
 let debug = true;
 
-const gridSize = 20;
-const tileSize = 20;
+const gridSize = 100;
+const tileSize = 10;
 const tiles = Array<Array<Tile>>();
 for(let x = 0;x < gridSize;x++) {
   const column = [];
