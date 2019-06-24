@@ -7,11 +7,22 @@ const context = canvas.getContext('2d');
 canvas.width = 600;
 canvas.height = 600;
 
-interface PathNode {
+class PathNode implements Identifiable<PathNode> {
   tile: Tile;
   parent: PathNode | null;
   fValue: number;
   hValue: number;
+
+  constructor(tile: Tile, parent: PathNode | null, fValue: number, hValue: number) {
+    this.tile = tile;
+    this.parent = parent;
+    this.fValue = fValue;
+    this.hValue = hValue;
+  }
+
+  getKey() {
+    return `${this.tile.x};${this.tile.y}`;
+  }
 }
 
 const fillStyleStack = Array<string>();
@@ -202,24 +213,31 @@ const findCheapestNode = (list: PathNode[], goal: Tile, start: Tile): PathNode =
     const distanceToGoal = costToGoal(curr.tile, goal);
     const distanceToStart = costFromStart(curr.tile, start);
     if ((distanceToGoal + distanceToStart) < min.fValue) {
-      min = { fValue: distanceToGoal, hValue: distanceToStart, tile: curr.tile, parent: curr.parent };
+      min = new PathNode(curr.tile,  curr.parent, distanceToGoal, distanceToStart);
     }
     return min;
-  }, { ...list[0], fValue: costToGoal(list[0].tile, goal), hValue: costFromStart(list[0].tile, start) });
+  }, new PathNode (list[0].tile, null, costToGoal(list[0].tile, goal), costFromStart(list[0].tile, start) ));
   return min;
 }
-
-const tileToPathNode = (tile: Tile, parent: PathNode, fValue: number, hValue: number): PathNode => ({ tile, parent, fValue, hValue }); 
 
 const getSuccessors = (pathNode: PathNode): Array<PathNode> => {
   const neighbours = getNeighbours(pathNode.tile)
     .filter(node => node.type !== TileType.Block);
 
-  return neighbours.map(tile => tileToPathNode(tile, pathNode, pathNode.fValue, pathNode.hValue));
+  return neighbours.map(tile => new PathNode(tile, pathNode, pathNode.fValue, pathNode.hValue));
 }
 
 interface Identifiable<T> {
   getKey(): string;
+}
+
+interface Comparable<T> {
+  compare(a: T, b: T): number;
+}
+
+class PriorityQueue<T extends Comparable<T>> {
+  heap: Array<T>[] = [];
+
 }
 
 class Collection<T extends Identifiable<T>> {
@@ -231,26 +249,37 @@ class Collection<T extends Identifiable<T>> {
     this.array = [];
   }
 
-  add(value: T) {
+  insert(value: T) {
     this.array.push(value);
     this.hashSet[value.getKey()] = value;
   }
 
   test(value: T) {
-    return !!this.hashSet[value.getKey()];
+    return !!this.find(value);
+  }
+
+  find(value: T) {
+    return this.hashSet[value.getKey()];
   }
 
   remove(value: T) {
     this.array = this.array.filter(x => x.getKey() !== value.getKey());
+  }
+
+  count() {
+    return this.array.length;
   }
 }
 
 function aStar(start: Tile, goal: Tile): Array<Tile> {
   console.time('aStar');
 
-  const startPathNode = { tile: start, parent: null, fValue: 0, hValue: 0 } as PathNode;
-  let open = [...getSuccessors(startPathNode)];
-  const closed = [startPathNode];
+  const startPathNode = new PathNode(start, null, 0, 0);
+  let open = new Collection<PathNode>();
+
+  [...getSuccessors(startPathNode)].forEach(pathNode => open.insert(pathNode));
+  let closed = new Collection<PathNode>();
+  closed.insert(startPathNode);
   
   tiles.forEach(column => {
     column.forEach(tile => {
@@ -263,10 +292,10 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
     })
   })
   
-  while (open.length > 0) {
-    const cheapestNode = findCheapestNode(open, goal, start);
+  while (open.count() > 0) {
+    const cheapestNode = findCheapestNode(open.array, goal, start);
 
-    open = open.filter(pathNode => !(pathNode.tile.x === cheapestNode.tile.x && pathNode.tile.y === cheapestNode.tile.y));
+    open.array = open.array.filter(pathNode => !(pathNode.tile.x === cheapestNode.tile.x && pathNode.tile.y === cheapestNode.tile.y));
     
     const successors = getSuccessors(cheapestNode);
     
@@ -277,8 +306,8 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
         const path = Array<Tile>();
         
         if (debug) {
-          open.forEach(pathNode => pathNode.tile.inOpen = true);
-          closed.forEach(pathNode => pathNode.tile.inClosed = true);
+          open.array.forEach(pathNode => pathNode.tile.inOpen = true);
+          closed.array.forEach(pathNode => pathNode.tile.inClosed = true);
         }
         tracePath(successor, path);
 
@@ -286,19 +315,19 @@ function aStar(start: Tile, goal: Tile): Array<Tile> {
         return path;
       }
 
-      const samePositionOpen = open.find(n => n.tile.x === successor.tile.x && n.tile.y === successor.tile.y);
+      const samePositionOpen = open.find(successor);
       if (samePositionOpen && samePositionOpen.fValue <= successor.fValue) {
         continue;
       }
 
-      const samePositionClosed = closed.find(n => n.tile.x === successor.tile.x && n.tile.y === successor.tile.y);
+      const samePositionClosed = closed.find(successor);
       if (samePositionClosed && samePositionClosed.fValue <= successor.fValue) {
         continue;
       }
 
-      open.push(successor);
+      open.insert(successor);
     }
-    closed.push(cheapestNode);
+    closed.insert(cheapestNode);
   }
 }
 
