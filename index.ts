@@ -1,5 +1,8 @@
 import { TileType } from "./TileType";
 import Tile from "./Tile";
+import { PathNode } from "./PathNode";
+import { aStar } from "./aStar";
+import { Point } from "./Point";
 
 const canvas = document.querySelector('#canvas') as any;
 const context = canvas.getContext('2d');
@@ -7,23 +10,6 @@ const context = canvas.getContext('2d');
 canvas.width = 600;
 canvas.height = 600;
 
-class PathNode implements Identifiable<PathNode> {
-  tile: Tile;
-  parent: PathNode | null;
-  fValue: number;
-  hValue: number;
-
-  constructor(tile: Tile, parent: PathNode | null, fValue: number, hValue: number) {
-    this.tile = tile;
-    this.parent = parent;
-    this.fValue = fValue;
-    this.hValue = hValue;
-  }
-
-  getKey() {
-    return `${this.tile.x};${this.tile.y}`;
-  }
-}
 
 const fillStyleStack = Array<string>();
 const strokeStyleStack = Array<string>();
@@ -69,14 +55,6 @@ const selectedColor = '#0000FF';
 let goalTile: Tile | null = null;
 let entityTile: Tile | null = null;
 
-class Point {
-  public x: number;
-  public y: number;
-  constructor(x: number, y: number) {
-    this.x = x;
-    this.y = y;
-  }
-}
 
 interface ScenarioTile { x: number, y: number, tileType: TileType };
 
@@ -189,158 +167,6 @@ function draw(tiles: Tile[][]) {
   drawPath(currentPath);
 }
 
-function getNeighbours(tile: Tile) {
-  const directions = [
-    { x: -1, y: -1}, { x: 0, y: -1},{ x: 1, y: -1},
-    { x: -1, y: 0},                 { x: 1, y: 0},
-    { x: -1, y: 1},  { x: 0, y: 1}, { x: 1, y: 1},
-  ];
-  return directions.map(d => ({ x: d.x + tile.x, y: d.y + tile.y }))
-    .filter(n => n.x >= 0 && n.y >= 0 && n.x < gridSize && n.y < gridSize)
-    .map(x => tiles[x.x][x.y]);
-}
-
-const costToGoal = (tile: Tile, goal: Tile) => {
-  return Math.sqrt(Math.pow(Math.abs(tile.x - goal.x),2) + Math.pow(Math.abs(tile.y - goal.y), 2)); 
-}
-
-const costFromStart = (tile: Tile, start: Tile) => {
-  return Math.sqrt(Math.pow(Math.abs(tile.x - start.x), 2) + Math.pow(Math.abs(tile.y - start.y),2)); 
-}
-
-const findCheapestNode = (list: PathNode[], goal: Tile, start: Tile): PathNode => {
-  const min = list.reduce((min: PathNode, curr: PathNode) => {
-    const distanceToGoal = costToGoal(curr.tile, goal);
-    const distanceToStart = costFromStart(curr.tile, start);
-    if ((distanceToGoal + distanceToStart) < min.fValue) {
-      min = new PathNode(curr.tile,  curr.parent, distanceToGoal, distanceToStart);
-    }
-    return min;
-  }, new PathNode (list[0].tile, null, costToGoal(list[0].tile, goal), costFromStart(list[0].tile, start) ));
-  return min;
-}
-
-const getSuccessors = (pathNode: PathNode): Array<PathNode> => {
-  const neighbours = getNeighbours(pathNode.tile)
-    .filter(node => node.type !== TileType.Block);
-
-  return neighbours.map(tile => new PathNode(tile, pathNode, pathNode.fValue, pathNode.hValue));
-}
-
-interface Identifiable<T> {
-  getKey(): string;
-}
-
-interface Comparable<T> {
-  compare(a: T, b: T): number;
-}
-
-class PriorityQueue<T extends Comparable<T>> {
-  heap: Array<T>[] = [];
-
-}
-
-class Collection<T extends Identifiable<T>> {
-  hashSet: any; //  will change to prio queue
-  array: Array<T>;
-
-  constructor() {
-    this.hashSet = {};
-    this.array = [];
-  }
-
-  insert(value: T) {
-    this.array.push(value);
-    this.hashSet[value.getKey()] = value;
-  }
-
-  test(value: T) {
-    return !!this.find(value);
-  }
-
-  find(value: T) {
-    return this.hashSet[value.getKey()];
-  }
-
-  remove(value: T) {
-    this.array = this.array.filter(x => x.getKey() !== value.getKey());
-  }
-
-  count() {
-    return this.array.length;
-  }
-}
-
-function aStar(start: Tile, goal: Tile): Array<Tile> {
-  console.time('aStar');
-
-  const startPathNode = new PathNode(start, null, 0, 0);
-  let open = new Collection<PathNode>();
-
-  [...getSuccessors(startPathNode)].forEach(pathNode => open.insert(pathNode));
-  let closed = new Collection<PathNode>();
-  closed.insert(startPathNode);
-  
-  tiles.forEach(column => {
-    column.forEach(tile => {
-      if (tile.inOpen) {
-        tile.inOpen = false;
-      }
-      if (tile.inClosed) {
-        tile.inClosed = false;
-      }
-    })
-  })
-  
-  while (open.count() > 0) {
-    const cheapestNode = findCheapestNode(open.array, goal, start);
-
-    open.array = open.array.filter(pathNode => !(pathNode.tile.x === cheapestNode.tile.x && pathNode.tile.y === cheapestNode.tile.y));
-    
-    const successors = getSuccessors(cheapestNode);
-    
-    for(let i=0;i < successors.length; i++) {
-      
-      const successor = successors[i];
-      if (successor.tile.x === goal.x && successor.tile.y == goal.y) {
-        const path = Array<Tile>();
-        
-        if (debug) {
-          open.array.forEach(pathNode => pathNode.tile.inOpen = true);
-          closed.array.forEach(pathNode => pathNode.tile.inClosed = true);
-        }
-        tracePath(successor, path);
-
-        console.timeEnd('aStar');
-        return path;
-      }
-
-      const samePositionOpen = open.find(successor);
-      if (samePositionOpen && samePositionOpen.fValue <= successor.fValue) {
-        continue;
-      }
-
-      const samePositionClosed = closed.find(successor);
-      if (samePositionClosed && samePositionClosed.fValue <= successor.fValue) {
-        continue;
-      }
-
-      open.insert(successor);
-    }
-    closed.insert(cheapestNode);
-  }
-}
-
-const tracePath = (node: PathNode, path: Array<Tile>) => {
-  path.push(node.tile);
-  if (!node.parent) {
-    return;
-  }
-
-  tracePath(node.parent, path);
-}
-
-
 canvas.addEventListener('click', (event: MouseEvent) => {
   const { layerX, layerY } = event;
   const column = tiles[Math.floor(layerX/tileSize)];
@@ -374,7 +200,7 @@ canvas.addEventListener('contextmenu', (event: MouseEvent) => {
   tile.type = selectedTileType;
 
   if (entityTile && goalTile) {
-    currentPath = aStar(entityTile, goalTile);
+    currentPath = aStar(tiles, entityTile, goalTile);
   }
 
   draw(tiles);
