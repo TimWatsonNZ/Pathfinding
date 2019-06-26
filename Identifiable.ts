@@ -1,4 +1,4 @@
 
-export interface Identifiable<T> {
+export interface Identifiable {
   getKey(): string;
 }

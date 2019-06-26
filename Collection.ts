@@ -1,16 +1,18 @@
 import { Identifiable } from "./Identifiable";
+import { PriorityQueue } from "./PriorityQueue";
+import { Measurable } from "./Measurable";
 
-export class Collection<T extends Identifiable<T>> {
+export class Collection<T extends Measurable & Identifiable> {
   hashSet: any; //  will change to prio queue
-  array: Array<T>;
+  queue: PriorityQueue<T>;
 
   constructor() {
     this.hashSet = {};
-    this.array = [];
+    this.queue = new PriorityQueue();
   }
 
   insert(value: T) {
-    this.array.push(value);
+    this.queue.insert(value);
     this.hashSet[value.getKey()] = value;
   }
 
@@ -22,11 +24,17 @@ export class Collection<T extends Identifiable<T>> {
     return this.hashSet[value.getKey()];
   }
 
-  remove(value: T) {
-    this.array = this.array.filter(x => x.getKey() !== value.getKey());
+  pop(): T {
+    const node = this.queue.pop();
+    this.hashSet[node.getKey()] = undefined;
+    return node;
   }
 
   count() {
-    return this.array.length;
+    return this.queue.count();
+  }
+
+  toArray() {
+    return this.queue.heap;
   }
 }

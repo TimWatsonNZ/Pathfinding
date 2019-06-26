@@ -1,7 +1,8 @@
 import Tile from "./Tile";
 import { Identifiable } from "./Identifiable";
+import { Measurable } from "./Measurable";
 
-export class PathNode implements Identifiable<PathNode> {
+export class PathNode implements Identifiable, Measurable {
   tile: Tile;
   parent: PathNode | null;
   fValue: number;
@@ -16,5 +17,9 @@ export class PathNode implements Identifiable<PathNode> {
 
   getKey() {
     return `${this.tile.x};${this.tile.y}`;
+  }
+
+  getMeasure() {
+    return this.fValue + this.hValue;
   }
 }

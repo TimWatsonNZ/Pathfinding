@@ -9,7 +9,7 @@ export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?
   const startPathNode = new PathNode(start, null, 0, 0);
   let open = new Collection<PathNode>();
 
-  [...getSuccessors(tiles, startPathNode)].forEach(pathNode => open.insert(pathNode));
+  [...getSuccessors(tiles, startPathNode, goal, start)].forEach(pathNode => open.insert(pathNode));
   let closed = new Collection<PathNode>();
   closed.insert(startPathNode);
   
@@ -25,11 +25,9 @@ export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?
   })
   
   while (open.count() > 0) {
-    const cheapestNode = findCheapestNode(open.array, goal, start);
-
-    open.array = open.array.filter(pathNode => !(pathNode.tile.x === cheapestNode.tile.x && pathNode.tile.y === cheapestNode.tile.y));
+    const cheapestNode = open.pop();
     
-    const successors = getSuccessors(tiles, cheapestNode);
+    const successors = getSuccessors(tiles, cheapestNode, goal, start);
     
     for(let i=0;i < successors.length; i++) {
       
@@ -38,8 +36,8 @@ export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?
         const path = Array<Tile>();
         
         if (debug) {
-          open.array.forEach(pathNode => pathNode.tile.inOpen = true);
-          closed.array.forEach(pathNode => pathNode.tile.inClosed = true);
+          open.toArray().forEach(pathNode => pathNode.tile.inOpen = true);
+          closed.toArray().forEach(pathNode => pathNode.tile.inClosed = true);
         }
         tracePath(successor, path);
 
@@ -63,23 +61,15 @@ export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?
   }
 }
 
-const findCheapestNode = (list: PathNode[], goal: Tile, start: Tile): PathNode => {
-  const min = list.reduce((min: PathNode, curr: PathNode) => {
-    const distanceToGoal = costToGoal(curr.tile, goal);
-    const distanceToStart = costFromStart(curr.tile, start);
-    if ((distanceToGoal + distanceToStart) < min.fValue) {
-      min = new PathNode(curr.tile,  curr.parent, distanceToGoal, distanceToStart);
-    }
-    return min;
-  }, new PathNode (list[0].tile, null, costToGoal(list[0].tile, goal), costFromStart(list[0].tile, start) ));
-  return min;
-}
-
-const getSuccessors = (tiles: Array<Array<Tile>>, pathNode: PathNode): Array<PathNode> => {
+const getSuccessors = (tiles: Array<Array<Tile>>, pathNode: PathNode, goal: Tile, start: Tile): Array<PathNode> => {
   const neighbours = getNeighbours(tiles, pathNode.tile)
     .filter(node => node.type !== TileType.Block);
 
-  return neighbours.map(tile => new PathNode(tile, pathNode, pathNode.fValue, pathNode.hValue));
+  return neighbours.map(tile => {
+    const fValue = costToGoal(tile, goal);
+    const hValue = costFromStart(tile, start) + pathNode.hValue;
+    return new PathNode(tile, pathNode, fValue, hValue)
+  });
 }
 
 function getNeighbours(tiles: Array<Array<Tile>>, tile: Tile) {
