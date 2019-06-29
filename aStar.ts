@@ -3,7 +3,7 @@ import Tile from "./Tile";
 import { TileType } from "./TileType";
 import { Collection } from "./Collection";
 
-export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?: boolean): Array<Tile> {
+export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?: boolean): Array<PathNode> {
   console.time('aStar');
 
   const startPathNode = new PathNode(start, null, 0, 0);
@@ -33,13 +33,13 @@ export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?
       
       const successor = successors[i];
       if (successor.tile.x === goal.x && successor.tile.y == goal.y) {
-        const path = Array<Tile>();
+        const path = Array<PathNode>();
         
         if (debug) {
           open.toArray().forEach(pathNode => pathNode.tile.inOpen = true);
           closed.toArray().forEach(pathNode => pathNode.tile.inClosed = true);
         }
-        tracePath(successor, path);
+        tracePathDebug(successor, path);
 
         console.timeEnd('aStar');
         return path;
@@ -61,14 +61,14 @@ export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?
   }
 }
 
-const getSuccessors = (tiles: Array<Array<Tile>>, pathNode: PathNode, goal: Tile, start: Tile): Array<PathNode> => {
-  const neighbours = getNeighbours(tiles, pathNode.tile)
+const getSuccessors = (tiles: Array<Array<Tile>>, parent: PathNode, goal: Tile, start: Tile): Array<PathNode> => {
+  const neighbours = getNeighbours(tiles, parent.tile)
     .filter(node => node.type !== TileType.Block);
 
   return neighbours.map(tile => {
     const fValue = costToGoal(tile, goal);
-    const hValue = costFromStart(tile, start) + pathNode.hValue;
-    return new PathNode(tile, pathNode, fValue, hValue)
+    const hValue = parent.hValue + (tile.x !== parent.tile.x && tile.y !== parent.tile.y ? Math.SQRT2 : 1);
+    return new PathNode(tile, parent, fValue, hValue)
   });
 }
 
@@ -83,12 +83,25 @@ function getNeighbours(tiles: Array<Array<Tile>>, tile: Tile) {
     .map(x => tiles[x.x][x.y]);
 }
 
+const euclidian = (tileA: Tile, tileB: Tile): number => {
+  return Math.sqrt(Math.pow(Math.abs(tileA.x - tileB.x),2) + Math.pow(Math.abs(tileA.y - tileB.y), 2));  
+}
+
 const costToGoal = (tile: Tile, goal: Tile) => {
-  return Math.sqrt(Math.pow(Math.abs(tile.x - goal.x),2) + Math.pow(Math.abs(tile.y - goal.y), 2)); 
+  return euclidian(tile, goal); 
 }
 
 const costFromStart = (tile: Tile, start: Tile) => {
   return Math.sqrt(Math.pow(Math.abs(tile.x - start.x), 2) + Math.pow(Math.abs(tile.y - start.y),2)); 
+}
+
+const tracePathDebug = (node: PathNode, path: Array<PathNode>) => {
+  path.push(node);
+  if (!node.parent) {
+    return;
+  }
+
+  tracePathDebug(node.parent, path);
 }
 
 const tracePath = (node: PathNode, path: Array<Tile>) => {

@@ -24,22 +24,34 @@ export class PriorityQueue<T extends Measurable> {
     }
   }
 
+
+  isSorted(): boolean {
+    const arr = this.heap;
+    const first = arr[0];
+    return arr.reduce((sorted, curr) => sorted && curr.getMeasure() > first.getMeasure(), true);
+  }
+
   pop(): T {
     if (this.heap.length < 3) {
-      const toReturn = this.heap.pop();
-      this.heap[0] = null;
+      const toReturn = this.heap.shift();
+      this.heap[1] = null;
       return toReturn;
     }
-    const toRemove = this.heap[1];
-    this.heap[1] = this.heap.pop();
-    let currentIdx = 1;
-    let [left, right] = [2*currentIdx, 2*currentIdx + 1];
-    let currentChildIdx = this.heap[right] && this.heap[right].getMeasure() >= this.heap[left].getMeasure() ? right : left;
-    while (this.heap[currentChildIdx] && this.heap[currentIdx].getMeasure() > this.heap[currentChildIdx].getMeasure()) {
+    const toRemove = this.heap.shift();
+    
+    let currentIdx = 0;
+    let [left, right] = [2*currentIdx + 1, 2*currentIdx + 2];
+    let smallestChild = this.heap[right] && this.heap[right].getMeasure() <= this.heap[left].getMeasure() ? right : left;
+    
+    while (this.heap[currentIdx] && this.heap[smallestChild] && this.heap[smallestChild].getMeasure() < this.heap[currentIdx].getMeasure()) {
+      // let currentChildNode = this.heap[smallestChild];
+      // this.heap[smallestChild] = currentNode;
+      // this.heap[currentIdx] = currentChildNode;
+      
       let currentNode = this.heap[currentIdx]
-      let currentChildNode = this.heap[currentChildIdx];
-      this.heap[currentChildIdx] = currentNode;
-      this.heap[currentIdx] = currentChildNode;
+      this.heap[currentIdx] = this.heap[smallestChild];
+      this.heap[smallestChild] = currentNode;
+      currentIdx = smallestChild;
     }
     return toRemove;
   }

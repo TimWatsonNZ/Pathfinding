@@ -26,7 +26,7 @@ export class Collection<T extends Measurable & Identifiable> {
 
   pop(): T {
     const node = this.queue.pop();
-    this.hashSet[node.getKey()] = undefined;
+    if (node) delete this.hashSet[node.getKey()];
     return node;
   }
 

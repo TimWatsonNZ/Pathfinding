@@ -84,7 +84,7 @@ function loadScenario(start: Point, scenarioTiles: Array<Array<string>>) {
     });
   });
 }
-let currentPath = Array<Tile>();
+let currentPath = Array<PathNode>();
 
 function loadScenario1() {
   const startPoint = new Point(0, 0);
@@ -117,11 +117,12 @@ loadScenario1();
 //  create grid
 draw(tiles);
 
-function drawPath (path: Array<Tile>) {
+function drawPath (path: Array<PathNode>) {
   if (!path) return;
   context.strokeStyle = '#000000';
   context.beginPath();
-  path.forEach((p, i) => {
+  path.forEach((pathNode, i) => {
+    const p = pathNode.tile;
     const point = { x: p.x * tileSize + tileSize / 2, y: p.y * tileSize + tileSize / 2 };
 
     if (i === 0) {
@@ -169,13 +170,21 @@ function draw(tiles: Tile[][]) {
 
 canvas.addEventListener('click', (event: MouseEvent) => {
   const { layerX, layerY } = event;
-  const column = tiles[Math.floor(layerX/tileSize)];
-  if (!column) return;
+  const columnIndex = Math.floor(layerX/tileSize);
+  if (!tiles[columnIndex]) return;
 
-  const tile = column[Math.floor(layerY/tileSize)];
+  const rowIndex = Math.floor(layerY/tileSize);
+  const tile = tiles[columnIndex][rowIndex];
   if (!tile) return;
 
   tile.selected = !tile.selected;
+
+  const pathNode = currentPath.find(path => path.tile.x === columnIndex && path.tile.y === rowIndex);
+
+  if (pathNode) {
+    console.log(pathNode.hValue);
+    console.log(pathNode.fValue);
+  }
 
   draw(tiles);
 });
@@ -200,7 +209,7 @@ canvas.addEventListener('contextmenu', (event: MouseEvent) => {
   tile.type = selectedTileType;
 
   if (entityTile && goalTile) {
-    currentPath = aStar(tiles, entityTile, goalTile);
+    currentPath = aStar(tiles, entityTile, goalTile, true);
   }
 
   draw(tiles);
