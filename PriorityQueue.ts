@@ -34,7 +34,6 @@ export class PriorityQueue<T extends Measurable> {
   pop(): T {
     if (this.heap.length < 3) {
       const toReturn = this.heap.shift();
-      this.heap[1] = null;
       return toReturn;
     }
     const toRemove = this.heap.shift();

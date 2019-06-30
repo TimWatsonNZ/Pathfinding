@@ -26,6 +26,7 @@ export function aStar(tiles: Array<Array<Tile>>, start: Tile, goal: Tile, debug?
   
   while (open.count() > 0) {
     const cheapestNode = open.pop();
+    if (!cheapestNode) break;
     
     const successors = getSuccessors(tiles, cheapestNode, goal, start);
     
@@ -67,7 +68,7 @@ const getSuccessors = (tiles: Array<Array<Tile>>, parent: PathNode, goal: Tile, 
 
   return neighbours.map(tile => {
     const fValue = costToGoal(tile, goal);
-    const hValue = parent.hValue + (tile.x !== parent.tile.x && tile.y !== parent.tile.y ? Math.SQRT2 : 1);
+    const hValue = parent.hValue + (tile.x !== parent.tile.x && tile.y !== parent.tile.y ? 2 : 1);
     return new PathNode(tile, parent, fValue, hValue)
   });
 }
